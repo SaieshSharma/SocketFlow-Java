@@ -42,6 +42,21 @@ public class concurrentChatClient {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+
+        Thread heartbeatThread = new Thread(() -> {
+    try {
+        while (true) {
+            Thread.sleep(10000);
+            System.out.println("HEARTBEAT:OK"); 
+        }
+    } catch (InterruptedException e) {
+        System.out.println("Heartbeat stopped.");
+    }
+
+});
+heartbeatThread.setDaemon(true); // Ensures the thread dies when the app closes
+heartbeatThread.start();
     }
 
 private static void executeSystemCommand(String command, PrintWriter out) {
