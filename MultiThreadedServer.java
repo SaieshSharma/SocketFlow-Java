@@ -67,6 +67,42 @@ private void broadcast(String message) {
         cout.println(message);
     }
 
+    private void handlePacket(String rawPacket) {
+    try {
+        // Split the packet into parts: [TYPE:X, FROM:Y, DATA:Z]
+        String[] parts = rawPacket.split("\\|");
+        String type = "", from = "", data = "";
+
+        for (String part : parts) {
+            if (part.startsWith("TYPE:")) type = part.substring(5);
+            if (part.startsWith("FROM:")) from = part.substring(5);
+            if (part.startsWith("DATA:")) data = part.substring(5);
+        }
+
+        // ROUTING LOGIC
+        switch (type) {
+            case "HEARTBEAT":
+                // System.out.print("."); // Just a dot to show it's alive without filling the screen
+                break;
+            
+            case "CHAT":
+                // Standard Log Format: [TIMESTAMP] [TYPE] [FROM] : MESSAGE
+            String timestamp = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
+            System.out.println("[" + timestamp + "] [INFO] " + from + ": " + data);
+            
+            broadcast(from + ": " + data);
+                break;
+
+            case "COMMAND_RESULT":
+                System.out.println(data);
+                break;
+        }
+    } catch (Exception e) {
+        // If it's not a packet, treat it as a legacy chat message for safety
+        broadcast(this.username + ": " + rawPacket);
+    }
+}
+
     @Override
     public void run() {
         try (
@@ -85,25 +121,14 @@ if (this.username != null) {
 
             String s;
 while ((s = cin.readLine()) != null) {
-    if (s.equalsIgnoreCase("END")) break;
-
-    // ADD THIS LINE: Prints the Node's output to the Master's Terminal
-    System.out.println(this.username + " response: " + s); 
-    
-    // Optional: Still broadcast if you want other nodes to see the output
-    broadcast(this.username + ": " + s);
-}
-            sk.close();
-        } catch (IOException e) {
-            System.out.println("Error: " + e.getMessage());
-        } finally {
-            clients.remove(this);
-            broadcast("--- " + this.username + " has left the chat ---");
-            try {
-                sk.close();
-            } catch (IOException e) {
-            }
+            // CRITICAL: Pass the raw string to the Parser
+            handlePacket(s); 
         }
+    } catch (Exception e) {
+        System.out.println("Node disconnected.");
+    } finally {
+        clients.remove(this);
+    }
     }
 
 

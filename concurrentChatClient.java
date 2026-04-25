@@ -9,18 +9,36 @@ public class concurrentChatClient {
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in))) {
 
-            System.out.println("Connected to server. Type your messages!");
+// 1. HANDSHAKE: Get and send username immediately
+        String serverPrompt = in.readLine(); // "Enter your username:"
+        System.out.println("Server: " + serverPrompt);
+        String username = stdIn.readLine(); 
+        out.println(username);
+
+        Thread heartbeatThread = new Thread(() -> {
+            try {
+                while (true) {
+                    Thread.sleep(10000);
+                    //new packet format
+                    String packet = createPacket("HEARTBEAT", "OK", username);
+                    out.println(packet); 
+                }
+            } catch (Exception e) {
+                System.out.println("Heartbeat interrupted.");
+            }
+        });
+        heartbeatThread.setDaemon(true);
+        heartbeatThread.start();
 
             // THREAD 1: The Reader (Listening For Server Commands)
             Thread readerThread = new Thread(() -> {
                 try {
                     String serverMessage;
-                    // TASK: Continuously read from 'in' and print to console
                     while ((serverMessage = in.readLine()) != null) {
                         if (serverMessage.startsWith("EXEC:")) {
                             String command = serverMessage.substring(5).trim();
                             System.out.println("\n[NODE AGENT]: Executing remote command -> " + command);
-                            executeSystemCommand(command, out);
+                            executeSystemCommand(command, out, username);
                         } else {
                             System.out.println("\nServer: " + serverMessage);
                         }
@@ -34,32 +52,17 @@ public class concurrentChatClient {
             // THREAD 2: The Writer (Keyboard Input)
             String userInput;
             while ((userInput = stdIn.readLine()) != null) {
-                out.println(userInput);
-                if (userInput.equalsIgnoreCase("END"))
-                    break;
+           if (userInput.equalsIgnoreCase("END")) break;
+            out.println(createPacket("CHAT", userInput, username));
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-
-        Thread heartbeatThread = new Thread(() -> {
-    try {
-        while (true) {
-            Thread.sleep(10000);
-            System.out.println("HEARTBEAT:OK"); 
-        }
-    } catch (InterruptedException e) {
-        System.out.println("Heartbeat stopped.");
     }
 
-});
-heartbeatThread.setDaemon(true); // Ensures the thread dies when the app closes
-heartbeatThread.start();
-    }
-
-private static void executeSystemCommand(String command, PrintWriter out) {
+private static void executeSystemCommand(String command, PrintWriter out, String username) {
     try {
         String os = System.getProperty("os.name").toLowerCase();
         ProcessBuilder pb;
@@ -80,12 +83,18 @@ private static void executeSystemCommand(String command, PrintWriter out) {
             String line;
             out.println(">>> Results from " + os + " Node:");
             while ((line = osReader.readLine()) != null) {
-                out.println(line);
+                out.println(createPacket("COMMAND_RESULT", line, username));
                 out.flush(); // Crucial for real-time streaming
             }
         }
     } catch (Exception e) {
         out.println("Agent Execution Error: " + e.getMessage());
     }
+}
+
+
+private static String createPacket(String type, String data, String user) {
+    // We use a delimiter like '|' because it's rare in normal text
+    return "TYPE:" + type + "|FROM:" + user + "|DATA:" + data;
 }
 }
