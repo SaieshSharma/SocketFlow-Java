@@ -1,1 +1,8 @@
-*.class
+# Ignore the logs folder (we want the folder structure, but not the actual log files)
+logs/*.log
+logs/success.txt
+logs/handshake.txt
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db

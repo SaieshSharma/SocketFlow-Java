@@ -9,26 +9,26 @@ public class concurrentChatClient {
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in))) {
 
-// 1. HANDSHAKE: Get and send username immediately
-        String serverPrompt = in.readLine(); // "Enter your username:"
-        System.out.println("Server: " + serverPrompt);
-        String username = stdIn.readLine(); 
-        out.println(username);
+            // 1. HANDSHAKE: Get and send username immediately
+            String serverPrompt = in.readLine(); // "Enter your username:"
+            System.out.println("Server: " + serverPrompt);
+            String username = stdIn.readLine();
+            out.println(username);
 
-        Thread heartbeatThread = new Thread(() -> {
-            try {
-                while (true) {
-                    Thread.sleep(10000);
-                    //new packet format
-                    String packet = createPacket("HEARTBEAT", "OK", username);
-                    out.println(packet); 
+            Thread heartbeatThread = new Thread(() -> {
+                try {
+                    while (true) {
+                        Thread.sleep(10000);
+                        // new packet format
+                        String packet = createPacket("HEARTBEAT", "OK", username);
+                        out.println(packet);
+                    }
+                } catch (Exception e) {
+                    System.out.println("Heartbeat interrupted.");
                 }
-            } catch (Exception e) {
-                System.out.println("Heartbeat interrupted.");
-            }
-        });
-        heartbeatThread.setDaemon(true);
-        heartbeatThread.start();
+            });
+            heartbeatThread.setDaemon(true);
+            heartbeatThread.start();
 
             // THREAD 1: The Reader (Listening For Server Commands)
             Thread readerThread = new Thread(() -> {
@@ -52,8 +52,9 @@ public class concurrentChatClient {
             // THREAD 2: The Writer (Keyboard Input)
             String userInput;
             while ((userInput = stdIn.readLine()) != null) {
-           if (userInput.equalsIgnoreCase("END")) break;
-            out.println(createPacket("CHAT", userInput, username));
+                if (userInput.equalsIgnoreCase("END"))
+                    break;
+                out.println(createPacket("CHAT", userInput, username));
             }
 
         } catch (IOException e) {
@@ -62,39 +63,38 @@ public class concurrentChatClient {
 
     }
 
-private static void executeSystemCommand(String command, PrintWriter out, String username) {
-    try {
-        String os = System.getProperty("os.name").toLowerCase();
-        ProcessBuilder pb;
+    private static void executeSystemCommand(String command, PrintWriter out, String username) {
+        try {
+            String os = System.getProperty("os.name").toLowerCase();
+            ProcessBuilder pb;
 
-        // The "Shell Wrapper" logic
-        if (os.contains("win")) {
-            // Windows needs cmd.exe to understand 'dir', 'type', etc.
-            pb = new ProcessBuilder("cmd.exe", "/c", command);
-        } else {
-            // Linux (Android/Termux) needs sh to understand 'ls', 'cat', etc.
-            pb = new ProcessBuilder("/bin/sh", "-c", command);
-        }
-
-        pb.redirectErrorStream(true); 
-        Process process = pb.start();
-        
-        try (BufferedReader osReader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            out.println(">>> Results from " + os + " Node:");
-            while ((line = osReader.readLine()) != null) {
-                out.println(createPacket("COMMAND_RESULT", line, username));
-                out.flush(); // Crucial for real-time streaming
+            // The "Shell Wrapper" logic
+            if (os.contains("win")) {
+                // Windows needs cmd.exe to understand 'dir', 'type', etc.
+                pb = new ProcessBuilder("cmd.exe", "/c", command);
+            } else {
+                // Linux (Android/Termux) needs sh to understand 'ls', 'cat', etc.
+                pb = new ProcessBuilder("/bin/sh", "-c", command);
             }
+
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            try (BufferedReader osReader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                out.println(">>> Results from " + os + " Node:");
+                while ((line = osReader.readLine()) != null) {
+                    out.println(createPacket("COMMAND_RESULT", line, username));
+                    out.flush(); // Crucial for real-time streaming
+                }
+            }
+        } catch (Exception e) {
+            out.println("Agent Execution Error: " + e.getMessage());
         }
-    } catch (Exception e) {
-        out.println("Agent Execution Error: " + e.getMessage());
     }
-}
 
-
-private static String createPacket(String type, String data, String user) {
-    // We use a delimiter like '|' because it's rare in normal text
-    return "TYPE:" + type + "|FROM:" + user + "|DATA:" + data;
-}
+    private static String createPacket(String type, String data, String user) {
+        // We use a delimiter like '|' because it's rare in normal text
+        return "TYPE:" + type + "|FROM:" + user + "|DATA:" + data;
+    }
 }
