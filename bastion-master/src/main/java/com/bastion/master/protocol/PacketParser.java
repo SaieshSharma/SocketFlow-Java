@@ -1,15 +1,11 @@
 package com.bastion.master.protocol;
 
+public class PacketParser {
 
-// systems are mostly controlled transformations of messy input into structured meaning.
-//classes dont throw exceptions , methods do
-public class PacketParserTest{
-
-    public static void main(String[] args) {
-        String s = "TYPE:HEARTBEAT|FROM:node1|DATA:OK";
+    public Packet parse(String rawPacket){
 
         //regex escaping
-        String[] incoming = s.split("\\|");
+        String[] incoming = rawPacket.split("\\|");
 
         String   type = null;
         String from = null;
@@ -18,15 +14,11 @@ public class PacketParserTest{
         for(String str : incoming){
             System.out.println(str);
 
-            try{
             if(str.startsWith("TYPE:")){
                 //by default assumes to go till end
                 type = (str.substring("TYPE:".length()));
             }
-        }
-        catch(InvalidPacketexception e){
-            System.out.println("Error: Invalid Type");
-        }
+
             if(str.startsWith("FROM:")){
                 //by default assumes to go till end
                 from = (str.substring("FROM:".length()));
@@ -37,9 +29,20 @@ public class PacketParserTest{
             }
         }
 
-        Packet packet = new Packet(PacketType.valueOf(type), from, data);
+        PacketType validPacket;
+        try{
+           validPacket = PacketType.valueOf(type);
+        }
+        catch(InvalidPacketException e){
+            throw new InvalidPacketException("Invalid packet type: " + type);
+        };
+        
+
+       return new Packet(validPacket, from, data);
 
     }
+    public static void main(String[] args) {
+        
+    }
     
-
 }
