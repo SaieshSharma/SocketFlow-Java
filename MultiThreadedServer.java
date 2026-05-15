@@ -22,7 +22,6 @@ public class MultiThreadedServer {
                     while (true) {
                         String cmd = console.readLine();
                         if (cmd != null) {
-                            // FIXED: We send the clean "EXEC:" prefix so the client recognizes it
                             broadcastToAll("EXEC:" + cmd);
                             logEvent("MASTER EXEC: Sent command '" + cmd + "' to all active nodes.");
                             System.out.println("Master: Command '" + cmd + "' sent to all nodes.");
@@ -51,6 +50,17 @@ public class MultiThreadedServer {
         }
     }
 
+    public static void sendToSpecific(String targetName, String message) {
+    for (ClientHandler client : clients) {
+        if (client.getUsername().equalsIgnoreCase(targetName)) {
+            client.sendMessage(message);
+            logEvent("MASTER PRIVATE EXEC: Sent to " + targetName + " -> " + message);
+            return;
+        }
+    }
+    System.out.println("Node '" + targetName + "' not found.");
+}
+
     public static void logEvent(String message) {
         String logPath = "/app/logs/bastion.log";
         try (PrintWriter out = new PrintWriter(new FileWriter(logPath, true))) {
@@ -58,7 +68,6 @@ public class MultiThreadedServer {
             out.flush();
             System.out.println(">>> [LOG SUCCESS]: Written to " + logPath); // Added for debugging
         } catch (Exception e) {
-            // This will now show up in your PowerShell window
             System.err.println("!!! [LOG ERROR]: " + e.getMessage());
             e.printStackTrace();
         }
@@ -108,7 +117,7 @@ class ClientHandler implements Runnable {
             switch (type) {
                 case "HEARTBEAT":
                     // System.out.print("."); // Just a dot to show it's alive without filling the
-                    // screen
+                    //logEvent
                     break;
 
                 case "CHAT":
@@ -124,7 +133,6 @@ class ClientHandler implements Runnable {
                     break;
             }
         } catch (Exception e) {
-            // If it's not a packet, treat it as a legacy chat message for safety
             broadcast(this.username + ": " + rawPacket);
         }
     }
@@ -140,7 +148,6 @@ class ClientHandler implements Runnable {
             this.username = cin.readLine();
 
             if (this.username != null) {
-                // VISIBILITY: This will now show up in Terminal 1 (Server)
                 System.out.println(">>> [NODE CONNECTED]: " + this.username);
                 MultiThreadedServer.logEvent("AUTH: Node '" + this.username + "' connected to Bastion.");
                 broadcast("--- " + this.username + " has joined the chat! ---");
